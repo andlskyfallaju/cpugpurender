@@ -1,0 +1,9 @@
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\main.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\cpugpurender.dir\Release\main.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\framebuffer.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\cpugpurender.dir\Release\framebuffer.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\rasterizer.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\cpugpurender.dir\Release\rasterizer.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\texture.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\cpugpurender.dir\Release\texture.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\tile_renderer.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\cpugpurender.dir\Release\tile_renderer.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\model.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\cpugpurender.dir\Release\model.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\hybrid_detector.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\cpugpurender.dir\Release\hybrid_detector.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\shadow_map.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\cpugpurender.dir\Release\shadow_map.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\jit_compiler.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\cpugpurender.dir\Release\jit_compiler.obj

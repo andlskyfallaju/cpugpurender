@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\vk_test.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{EE0F93C2-7E7A-3917-9186-99D09621BC8B}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

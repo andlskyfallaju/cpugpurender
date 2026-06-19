@@ -1,0 +1,5 @@
+C:/Users/andim/OneDrive/Documentos/Flutter/cpugpurender/build/CMakeFiles/cpugpurender.dir
+C:/Users/andim/OneDrive/Documentos/Flutter/cpugpurender/build/CMakeFiles/vulkan_softgpu.dir
+C:/Users/andim/OneDrive/Documentos/Flutter/cpugpurender/build/CMakeFiles/vk_test.dir
+C:/Users/andim/OneDrive/Documentos/Flutter/cpugpurender/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/andim/OneDrive/Documentos/Flutter/cpugpurender/build/CMakeFiles/ZERO_CHECK.dir

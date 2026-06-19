@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\framebuffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\rasterizer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\texture.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\tile_renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\model.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\hybrid_detector.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\shadow_map.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\jit_compiler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{EE0F93C2-7E7A-3917-9186-99D09621BC8B}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

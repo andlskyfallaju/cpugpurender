@@ -1,0 +1,9 @@
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\vulkan_entry.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\vulkan_softgpu.dir\Release\vulkan_entry.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\framebuffer.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\vulkan_softgpu.dir\Release\framebuffer.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\rasterizer.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\vulkan_softgpu.dir\Release\rasterizer.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\texture.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\vulkan_softgpu.dir\Release\texture.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\tile_renderer.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\vulkan_softgpu.dir\Release\tile_renderer.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\model.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\vulkan_softgpu.dir\Release\model.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\hybrid_detector.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\vulkan_softgpu.dir\Release\hybrid_detector.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\shadow_map.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\vulkan_softgpu.dir\Release\shadow_map.obj
+C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\src\jit_compiler.cpp;C:\Users\andim\OneDrive\Documentos\Flutter\cpugpurender\build\vulkan_softgpu.dir\Release\jit_compiler.obj
