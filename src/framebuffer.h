@@ -26,6 +26,11 @@ private:
     std::unique_ptr<std::atomic<float>[]> hiZBuffer; // max depth written per tile
     bool hiZActive = false;
 
+    // MSAA support
+    bool msaaActive = false;
+    std::vector<Color> msaaColorBuffer;
+    std::vector<float> msaaDepthBuffer;
+
 public:
     Framebuffer(int w, int h);
     int getWidth() const { return width; }
@@ -37,6 +42,14 @@ public:
     float getDepth(int x, int y) const;
     bool saveToPng(const std::string& filepath) const;
     const Color* getColorData() const { return colorBuffer.data(); }
+
+    // MSAA interface
+    bool isMsaaActive() const { return msaaActive; }
+    void setMsaaActive(bool active);
+    void setMsaaPixel(int x, int y, int sampleIdx, const Color& color);
+    void setMsaaDepth(int x, int y, int sampleIdx, float depth);
+    float getMsaaDepth(int x, int y, int sampleIdx) const;
+    void resolveMSAA();
 
     // Hi-Z interface
     void initHiZ(int tileSize, float clearDepth = -1e5f);

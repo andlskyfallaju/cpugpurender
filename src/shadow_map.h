@@ -74,16 +74,26 @@ public:
         float bias = std::max(0.03f * (1.0f - cosTheta), 0.012f);
 
         float litSum = 0.0f;
-        int texX = static_cast<int>(scX + 0.5f);
-        int texY = static_cast<int>(scY + 0.5f);
+        // Shift coordinate by -0.5f to align with texel centers for bilinear filtering
+        float uvX = scX - 0.5f;
+        float uvY = scY - 0.5f;
+        int baseX = static_cast<int>(std::floor(uvX));
+        int baseY = static_cast<int>(std::floor(uvY));
+        float fracX = uvX - (float)baseX;
+        float fracY = uvY - (float)baseY;
 
-        for (int dy = -1; dy <= 1; ++dy) {
-            for (int dx = -1; dx <= 1; ++dx) {
-                float shadowMapDepth = getDepth(texX + dx, texY + dy);
-                // Fragment is in shadow if its depth > closest-to-light stored depth + bias
-                litSum += (currentDepth > shadowMapDepth + bias) ? 0.0f : 1.0f;
-            }
-        }
-        return litSum / 9.0f;
+        float d00 = getDepth(baseX, baseY);
+        float d10 = getDepth(baseX + 1, baseY);
+        float d01 = getDepth(baseX, baseY + 1);
+        float d11 = getDepth(baseX + 1, baseY + 1);
+
+        float s00 = (currentDepth > d00 + bias) ? 0.0f : 1.0f;
+        float s10 = (currentDepth > d10 + bias) ? 0.0f : 1.0f;
+        float s01 = (currentDepth > d01 + bias) ? 0.0f : 1.0f;
+        float s11 = (currentDepth > d11 + bias) ? 0.0f : 1.0f;
+
+        float s0 = s00 * (1.0f - fracX) + s10 * fracX;
+        float s1 = s01 * (1.0f - fracX) + s11 * fracX;
+        return s0 * (1.0f - fracY) + s1 * fracY;
     }
 };

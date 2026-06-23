@@ -225,107 +225,208 @@ void drawTriangleTexturedShadedTile(const Vec3f& v0, const Vec3f& v1, const Vec3
     uint64_t localShaded = 0;
     uint64_t localEarlyZ = 0;
 
+    // Rotated-grid 4x MSAA sample offsets (relative to pixel center)
+    static constexpr float kMsaaOffX[4] = { -0.25f,  0.75f, -0.75f,  0.25f };
+    static constexpr float kMsaaOffY[4] = { -0.75f, -0.25f,  0.25f,  0.75f };
+
+    const bool useMsaa = fb.isMsaaActive();
+
     for (int y = minY; y <= maxY; ++y) {
         for (int x = minX; x <= maxX; ++x) {
-            Vec3f p(x + 0.5f, y + 0.5f, 0.0f);
 
-            float w0_val = edgeFunction(v1, v2, p);
-            float w1_val = edgeFunction(v2, v0, p);
-            float w2_val = edgeFunction(v0, v1, p);
+            if (useMsaa) {
+                // ── MSAA path: coverage at 4 sub-pixel positions ──────────────
+                // Test all 4 samples
+                int coveredMask = 0;
+                float sampleZ[4];
+                for (int s = 0; s < 4; ++s) {
+                    Vec3f sp(x + 0.5f + kMsaaOffX[s], y + 0.5f + kMsaaOffY[s], 0.0f);
+                    float sw0 = edgeFunction(v1, v2, sp);
+                    float sw1 = edgeFunction(v2, v0, sp);
+                    float sw2 = edgeFunction(v0, v1, sp);
 
-            bool inside = false;
-            if (area > 0) {
-                inside = (w0_val >= 0 && w1_val >= 0 && w2_val >= 0);
-            } else {
-                inside = (w0_val <= 0 && w1_val <= 0 && w2_val <= 0);
-            }
-
-            if (inside) {
-                float u = w0_val / area;
-                float v = w1_val / area;
-                float w = w2_val / area;
-
-                float z = u * v0.z + v * v1.z + w * v2.z;
-
-                if (z > fb.getDepth(x, y)) {
-                    fb.setDepth(x, y, z);
-
-                    float texU = u * uv0.x + v * uv1.x + w * uv2.x;
-                    float texV = u * uv0.y + v * uv1.y + w * uv2.y;
-
-                    Color finalColor;
-
-                    if (jittedShader) {
-                        float shadowFactor = 1.0f;
-                        Vec3f worldPos = w0 * u + w1 * v + w2 * w;
-                        Vec3f interpNormal = n0 * u + n1 * v + n2 * w;
-                        interpNormal.normalize();
-                        if (shadowMap) {
-                            shadowFactor = shadowMap->sampleShadow(worldPos, interpNormal, lDir);
-                        }
-                        PixelContext ctx = {
-                            Vec2f(texU, texV),
-                            interpNormal,
-                            worldPos,
-                            &texture,
-                            normalMap,
-                            shadowFactor,
-                            lightIntensity,
-                            lDir,
-                            t0 * u + t1 * v + t2 * w,
-                            Vec3f(), // Bitangent is reconstructed in JIT when normal mapping
-                        };
-                        jittedShader(&ctx, &finalColor);
+                    bool inside_s = (area > 0) ? (sw0 >= 0 && sw1 >= 0 && sw2 >= 0)
+                                               : (sw0 <= 0 && sw1 <= 0 && sw2 <= 0);
+                    if (inside_s) {
+                        float su = sw0 / area, sv = sw1 / area, sw = sw2 / area;
+                        sampleZ[s] = su * v0.z + sv * v1.z + sw * v2.z;
+                        coveredMask |= (1 << s);
                     } else {
-                        Color texColor = texture.sample(texU, texV);
-
-                        Vec3f normal = n0 * u + n1 * v + n2 * w;
-                        normal.normalize();
-
-                        if (normalMap) {
-                            // Reconstruct TBN matrix
-                            Vec3f tangent = t0 * u + t1 * v + t2 * w;
-                            tangent.normalize();
-                            // Re-orthogonalize tangent with respect to normal (Gram-Schmidt)
-                            tangent = (tangent - normal * (tangent * normal)).normalize();
-                            Vec3f bitangent = normal ^ tangent;
-                            bitangent.normalize();
-
-                            Color nmColor = normalMap->sample(texU, texV);
-                            // Map RGB [0, 255] to tangent space normal [-1, 1]
-                            Vec3f tangentNormal(
-                                (nmColor.r / 255.0f) * 2.0f - 1.0f,
-                                (nmColor.g / 255.0f) * 2.0f - 1.0f,
-                                (nmColor.b / 255.0f) * 2.0f - 1.0f
-                            );
-                            tangentNormal.normalize();
-                            // Transform tangentNormal to worldNormal
-                            normal = (tangent * tangentNormal.x + bitangent * tangentNormal.y + normal * tangentNormal.z).normalize();
-                        }
-
-                        float shadowFactor = 1.0f;
-                        if (shadowMap) {
-                            Vec3f worldPos = w0 * u + w1 * v + w2 * w;
-                            shadowFactor = shadowMap->sampleShadow(worldPos, normal, lDir);
-                        }
-
-                        float diffuse = std::max(0.0f, normal * lDir);
-                        // Shading intensity combines ambient (0.15) + diffuse * shadow factor
-                        float intensity = (0.15f + 0.85f * diffuse * shadowFactor) * lightIntensity;
-                        intensity = std::clamp(intensity, 0.0f, 1.0f);
-
-                        finalColor.r = static_cast<uint8_t>(std::clamp(texColor.r * intensity, 0.0f, 255.0f));
-                        finalColor.g = static_cast<uint8_t>(std::clamp(texColor.g * intensity, 0.0f, 255.0f));
-                        finalColor.b = static_cast<uint8_t>(std::clamp(texColor.b * intensity, 0.0f, 255.0f));
-                        finalColor.a = texColor.a;
+                        sampleZ[s] = -1e10f;
                     }
-
-                    fb.setPixel(x, y, finalColor);
-                    localShaded++;
-                } else {
-                    localEarlyZ++;
                 }
-            }
+
+                if (coveredMask == 0) continue;
+
+                // Shade once at pixel center (barycentric at center)
+                Vec3f pc(x + 0.5f, y + 0.5f, 0.0f);
+                float w0_val = edgeFunction(v1, v2, pc);
+                float w1_val = edgeFunction(v2, v0, pc);
+                float w2_val = edgeFunction(v0, v1, pc);
+                float u = w0_val / area, v_b = w1_val / area, w = w2_val / area;
+
+                float texU = u * uv0.x + v_b * uv1.x + w * uv2.x;
+                float texV = u * uv0.y + v_b * uv1.y + w * uv2.y;
+
+                Color finalColor;
+                if (jittedShader) {
+                    float shadowFactor = 1.0f;
+                    Vec3f worldPos = w0 * u + w1 * v_b + w2 * w;
+                    Vec3f interpNormal = n0 * u + n1 * v_b + n2 * w;
+                    interpNormal.normalize();
+                    if (shadowMap) {
+                        shadowFactor = shadowMap->sampleShadow(worldPos, interpNormal, lDir);
+                    }
+                    PixelContext ctx = {
+                        Vec2f(texU, texV), interpNormal, worldPos,
+                        &texture, normalMap, shadowFactor, lightIntensity, lDir,
+                        t0 * u + t1 * v_b + t2 * w, Vec3f(),
+                    };
+                    jittedShader(&ctx, &finalColor);
+                } else {
+                    Color texColor = texture.sample(texU, texV);
+                    Vec3f normal = n0 * u + n1 * v_b + n2 * w;
+                    normal.normalize();
+                    if (normalMap) {
+                        Vec3f tangent = t0 * u + t1 * v_b + t2 * w;
+                        tangent.normalize();
+                        tangent = (tangent - normal * (tangent * normal)).normalize();
+                        Vec3f bitangent = normal ^ tangent;
+                        bitangent.normalize();
+                        Color nmColor = normalMap->sample(texU, texV);
+                        Vec3f tangentNormal(
+                            (nmColor.r / 255.0f) * 2.0f - 1.0f,
+                            (nmColor.g / 255.0f) * 2.0f - 1.0f,
+                            (nmColor.b / 255.0f) * 2.0f - 1.0f
+                        );
+                        tangentNormal.normalize();
+                        normal = (tangent * tangentNormal.x + bitangent * tangentNormal.y + normal * tangentNormal.z).normalize();
+                    }
+                    float shadowFactor = 1.0f;
+                    if (shadowMap) {
+                        Vec3f worldPos = w0 * u + w1 * v_b + w2 * w;
+                        shadowFactor = shadowMap->sampleShadow(worldPos, normal, lDir);
+                    }
+                    float diffuse = std::max(0.0f, normal * lDir);
+                    float intensity = (0.15f + 0.85f * diffuse * shadowFactor) * lightIntensity;
+                    intensity = std::clamp(intensity, 0.0f, 1.0f);
+                    finalColor.r = static_cast<uint8_t>(std::clamp(texColor.r * intensity, 0.0f, 255.0f));
+                    finalColor.g = static_cast<uint8_t>(std::clamp(texColor.g * intensity, 0.0f, 255.0f));
+                    finalColor.b = static_cast<uint8_t>(std::clamp(texColor.b * intensity, 0.0f, 255.0f));
+                    finalColor.a = texColor.a;
+                }
+
+                // Write per-sample (depth test per sample)
+                bool anySampleWritten = false;
+                for (int s = 0; s < 4; ++s) {
+                    if (!(coveredMask & (1 << s))) continue;
+                    if (sampleZ[s] > fb.getMsaaDepth(x, y, s)) {
+                        fb.setMsaaDepth(x, y, s, sampleZ[s]);
+                        fb.setMsaaPixel(x, y, s, finalColor);
+                        anySampleWritten = true;
+                    } else {
+                        localEarlyZ++;
+                    }
+                }
+                if (anySampleWritten) localShaded++;
+
+            } else {
+                // ── Standard (non-MSAA) path ──────────────────────────────────
+                Vec3f p(x + 0.5f, y + 0.5f, 0.0f);
+
+                float w0_val = edgeFunction(v1, v2, p);
+                float w1_val = edgeFunction(v2, v0, p);
+                float w2_val = edgeFunction(v0, v1, p);
+
+                bool inside = false;
+                if (area > 0) {
+                    inside = (w0_val >= 0 && w1_val >= 0 && w2_val >= 0);
+                } else {
+                    inside = (w0_val <= 0 && w1_val <= 0 && w2_val <= 0);
+                }
+
+                if (inside) {
+                    float u = w0_val / area;
+                    float v_b = w1_val / area;
+                    float w = w2_val / area;
+
+                    float z = u * v0.z + v_b * v1.z + w * v2.z;
+
+                    if (z > fb.getDepth(x, y)) {
+                        fb.setDepth(x, y, z);
+
+                        float texU = u * uv0.x + v_b * uv1.x + w * uv2.x;
+                        float texV = u * uv0.y + v_b * uv1.y + w * uv2.y;
+
+                        Color finalColor;
+
+                        if (jittedShader) {
+                            float shadowFactor = 1.0f;
+                            Vec3f worldPos = w0 * u + w1 * v_b + w2 * w;
+                            Vec3f interpNormal = n0 * u + n1 * v_b + n2 * w;
+                            interpNormal.normalize();
+                            if (shadowMap) {
+                                shadowFactor = shadowMap->sampleShadow(worldPos, interpNormal, lDir);
+                            }
+                            PixelContext ctx = {
+                                Vec2f(texU, texV),
+                                interpNormal,
+                                worldPos,
+                                &texture,
+                                normalMap,
+                                shadowFactor,
+                                lightIntensity,
+                                lDir,
+                                t0 * u + t1 * v_b + t2 * w,
+                                Vec3f(),
+                            };
+                            jittedShader(&ctx, &finalColor);
+                        } else {
+                            Color texColor = texture.sample(texU, texV);
+
+                            Vec3f normal = n0 * u + n1 * v_b + n2 * w;
+                            normal.normalize();
+
+                            if (normalMap) {
+                                Vec3f tangent = t0 * u + t1 * v_b + t2 * w;
+                                tangent.normalize();
+                                tangent = (tangent - normal * (tangent * normal)).normalize();
+                                Vec3f bitangent = normal ^ tangent;
+                                bitangent.normalize();
+
+                                Color nmColor = normalMap->sample(texU, texV);
+                                Vec3f tangentNormal(
+                                    (nmColor.r / 255.0f) * 2.0f - 1.0f,
+                                    (nmColor.g / 255.0f) * 2.0f - 1.0f,
+                                    (nmColor.b / 255.0f) * 2.0f - 1.0f
+                                );
+                                tangentNormal.normalize();
+                                normal = (tangent * tangentNormal.x + bitangent * tangentNormal.y + normal * tangentNormal.z).normalize();
+                            }
+
+                            float shadowFactor = 1.0f;
+                            if (shadowMap) {
+                                Vec3f worldPos = w0 * u + w1 * v_b + w2 * w;
+                                shadowFactor = shadowMap->sampleShadow(worldPos, normal, lDir);
+                            }
+
+                            float diffuse = std::max(0.0f, normal * lDir);
+                            float intensity = (0.15f + 0.85f * diffuse * shadowFactor) * lightIntensity;
+                            intensity = std::clamp(intensity, 0.0f, 1.0f);
+
+                            finalColor.r = static_cast<uint8_t>(std::clamp(texColor.r * intensity, 0.0f, 255.0f));
+                            finalColor.g = static_cast<uint8_t>(std::clamp(texColor.g * intensity, 0.0f, 255.0f));
+                            finalColor.b = static_cast<uint8_t>(std::clamp(texColor.b * intensity, 0.0f, 255.0f));
+                            finalColor.a = texColor.a;
+                        }
+
+                        fb.setPixel(x, y, finalColor);
+                        localShaded++;
+                    } else {
+                        localEarlyZ++;
+                    }
+                }
+            } // end useMsaa branch
         }
     }
 
@@ -369,6 +470,17 @@ void drawTriangleTexturedShadedSIMD(const Vec3f& v0, const Vec3f& v1, const Vec3
 
     uint64_t localShaded = 0;
     uint64_t localEarlyZ = 0;
+
+    // When MSAA is active, delegate to the scalar tile function which has full MSAA support
+    if (fb.isMsaaActive()) {
+        drawTriangleTexturedShadedTile(
+            v0, v1, v2, uv0, uv1, uv2, n0, n1, n2,
+            lightDir, lightIntensity, texture, fb,
+            tileMinX, tileMaxX, tileMinY, tileMaxY,
+            telemetry, w0, w1, w2, shadowMap, t0, t1, t2, normalMap, jittedShader
+        );
+        return;
+    }
 
     // Prepare SIMD constants
     __m256 v_v0_x = _mm256_set1_ps(v0.x);

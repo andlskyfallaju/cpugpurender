@@ -96,6 +96,7 @@ float yaw = 0.0f;
 float pitch = 0.0f;
 bool isDragging = false;
 POINT lastMousePos;
+bool msaaEnabled = true; // MSAA 4x on by default (toggle with M)
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
@@ -133,6 +134,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             else if (wParam == VK_UP) pitch -= 0.05f;
             else if (wParam == VK_DOWN) pitch += 0.05f;
             else if (wParam == VK_ESCAPE) PostQuitMessage(0);
+            else if (wParam == 'M') msaaEnabled = !msaaEnabled; // Toggle MSAA
             break;
         default:
             return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -262,12 +264,21 @@ int main(int argc, char* argv[]) {
     if (jittedShader) {
         std::cout << "  [OK] JIT compilation successful! Emitted assembly jump to execution block. (took " 
                   << std::chrono::duration<float, std::milli>(tJitEnd - tJitStart).count() << " ms)" << std::endl;
+        
+        std::cout << "[JIT DEBUG] Calling jittedShader with dummy context..." << std::endl;
+        PixelContext dummyCtx = {};
+        dummyCtx.lightIntensity = 1.0f;
+        Color dummyColor = {};
+        jittedShader(&dummyCtx, &dummyColor);
+        std::cout << "[JIT DEBUG] Call successful! Color: " 
+                  << (int)dummyColor.r << ", " << (int)dummyColor.g << ", " << (int)dummyColor.b << std::endl;
     } else {
         std::cerr << "  [ERROR] JIT compilation failed!" << std::endl;
     }
 
     // Initialize Hi-Z tile buffer once (tile size is default to 32)
     fb.initHiZ(32);
+    fb.setMsaaActive(msaaEnabled);
 
     auto renderFrame = [&](float currentYaw, float currentPitch, Profiler& prof, int tileSize = 32) {
         prof.telemetry.reset();
@@ -366,6 +377,10 @@ int main(int argc, char* argv[]) {
 
         // ── PASS 2: CAMERA SHADING PASS ─────────────────────────────────────
         Color backgroundColor(18, 20, 24, 255);
+        // Sync MSAA active state (supports runtime toggle)
+        if (fb.isMsaaActive() != msaaEnabled) {
+            fb.setMsaaActive(msaaEnabled);
+        }
         fb.clear(backgroundColor, -1e5f);
         fb.clearHiZ(-1e5f);
 
@@ -457,6 +472,11 @@ int main(int argc, char* argv[]) {
         TileRenderer::renderParallel(fb, tasks, lightDir, lightIntensity, true, &prof.telemetry, tileSize, workerAffinity);
         auto tRasEnd = std::chrono::high_resolution_clock::now();
         prof.rasterizationTimeMs = std::chrono::duration<float, std::milli>(tRasEnd - tRasStart).count();
+
+        // ── MSAA Resolve: average 4 sub-pixel samples into the color buffer ──
+        if (fb.isMsaaActive()) {
+            fb.resolveMSAA();
+        }
     };
 
     bool benchTiles = false;
@@ -639,11 +659,13 @@ int main(int argc, char* argv[]) {
             "Throughput: %.2f MP/s\n"
             "Tris Count: %llu\n"
             "Hi-Z Culls: %llu\n"
-            "Shaded Pix: %llu",
+            "Shaded Pix: %llu\n"
+            "MSAA 4x:    %s  [M]",
             fps, totalTime, prof.geometryTimeMs, prof.rasterizationTimeMs, mps, 
-            prof.telemetry.trianglesTested.load(), prof.telemetry.hiZTileCulls.load(), prof.telemetry.pixelsShaded.load()
+            prof.telemetry.trianglesTested.load(), prof.telemetry.hiZTileCulls.load(), prof.telemetry.pixelsShaded.load(),
+            msaaEnabled ? "ON " : "OFF"
         );
-        drawRect(fb, 10, 10, 210, 120, Color(10, 12, 16, 220));
+        drawRect(fb, 10, 10, 210, 132, Color(10, 12, 16, 220));
         drawText(fb, 15, 15, osdBuffer, Color(0, 255, 128, 255));
 
         // Perform fast conversion from RGBA to BGRA for GDI blitting, flipping only Y to match GDI's viewport orientation
