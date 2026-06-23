@@ -1,0 +1,22 @@
+build/
+*.exe
+*.dll
+*.lib
+*.exp
+*.obj
+*.pdb
+output_*.png
+Benchmark Screenshots/
+
+# Visual Studio / IDEs
+.vs/
+out/
+x64/
+ARM64/
+Debug/
+Release/
+MinSizeRel/
+RelWithDebInfo/
+*.user
+*.suo
+*.sln.docstates

@@ -3,6 +3,8 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <thread>
+#include <atomic>
 #define NOMINMAX
 #include <windows.h>
 #include "framebuffer.h"
@@ -289,57 +291,77 @@ int main(int argc, char* argv[]) {
         Matrix4 lightSpaceMatrix = lightProj * lightView;
         shadowMap.setLightSpaceMatrix(lightSpaceMatrix);
 
-        // Render OBJ geometry into the shadow map
-        for (int i = 0; i < model.getNumFaces(); ++i) {
-            Vec3f mv0 = model.getVertex(i, 0);
-            Vec3f mv1 = model.getVertex(i, 1);
-            Vec3f mv2 = model.getVertex(i, 2);
+        // Render OBJ geometry into the shadow map in parallel
+        unsigned int numThreads = std::thread::hardware_concurrency();
+        if (numThreads == 0) numThreads = 4;
+        std::vector<std::thread> threads;
+        threads.reserve(numThreads);
+        std::atomic<int> nextFace(0);
+        int numFaces = model.getNumFaces();
 
-            // Center and scale to normalized model space [-0.85, 0.85]
-            Vec3f nv0((mv0.x - centerX) * scale, (mv0.y - centerY) * scale, (mv0.z - centerZ) * scale);
-            Vec3f nv1((mv1.x - centerX) * scale, (mv1.y - centerY) * scale, (mv1.z - centerZ) * scale);
-            Vec3f nv2((mv2.x - centerX) * scale, (mv2.y - centerY) * scale, (mv2.z - centerZ) * scale);
+        for (unsigned int t = 0; t < numThreads; ++t) {
+            threads.emplace_back([&, workerAffinity = (detector.isHybridArchitecture() ? detector.getECoreMask() : 0)]() {
+                if (workerAffinity != 0) {
+                    SetThreadAffinityMask(GetCurrentThread(), workerAffinity);
+                }
+                while (true) {
+                    int i = nextFace.fetch_add(1, std::memory_order_relaxed);
+                    if (i >= numFaces) break;
 
-            // Rotate normalized model space coordinates (matches main camera rotation)
-            Vec3f rv0 = rotateX(rotateY(nv0, currentYaw), currentPitch);
-            Vec3f rv1 = rotateX(rotateY(nv1, currentYaw), currentPitch);
-            Vec3f rv2 = rotateX(rotateY(nv2, currentYaw), currentPitch);
+                    Vec3f mv0 = model.getVertex(i, 0);
+                    Vec3f mv1 = model.getVertex(i, 1);
+                    Vec3f mv2 = model.getVertex(i, 2);
 
-            // Project vertices to Light NDC
-            Vec3f lv0 = lightSpaceMatrix.transformPoint(rv0);
-            Vec3f lv1 = lightSpaceMatrix.transformPoint(rv1);
-            Vec3f lv2 = lightSpaceMatrix.transformPoint(rv2);
+                    // Center and scale to normalized model space [-0.85, 0.85]
+                    Vec3f nv0((mv0.x - centerX) * scale, (mv0.y - centerY) * scale, (mv0.z - centerZ) * scale);
+                    Vec3f nv1((mv1.x - centerX) * scale, (mv1.y - centerY) * scale, (mv1.z - centerZ) * scale);
+                    Vec3f nv2((mv2.x - centerX) * scale, (mv2.y - centerY) * scale, (mv2.z - centerZ) * scale);
 
-            // Transform Light NDC coordinates to Shadow Map screen coordinates
-            // NDC Y is +up but texture Y is +down, so flip Y.
-            float lscX0 = (lv0.x + 1.0f) * 0.5f * (float)(shadowMap.getWidth() - 1);
-            float lscY0 = (1.0f - (lv0.y + 1.0f) * 0.5f) * (float)(shadowMap.getHeight() - 1);
-            float lscX1 = (lv1.x + 1.0f) * 0.5f * (float)(shadowMap.getWidth() - 1);
-            float lscY1 = (1.0f - (lv1.y + 1.0f) * 0.5f) * (float)(shadowMap.getHeight() - 1);
-            float lscX2 = (lv2.x + 1.0f) * 0.5f * (float)(shadowMap.getWidth() - 1);
-            float lscY2 = (1.0f - (lv2.y + 1.0f) * 0.5f) * (float)(shadowMap.getHeight() - 1);
+                    // Rotate normalized model space coordinates (matches main camera rotation)
+                    Vec3f rv0 = rotateX(rotateY(nv0, currentYaw), currentPitch);
+                    Vec3f rv1 = rotateX(rotateY(nv1, currentYaw), currentPitch);
+                    Vec3f rv2 = rotateX(rotateY(nv2, currentYaw), currentPitch);
 
-            int minX = std::max(0, static_cast<int>(std::floor(std::min({lscX0, lscX1, lscX2}))));
-            int maxX = std::min(shadowMap.getWidth() - 1, static_cast<int>(std::ceil(std::max({lscX0, lscX1, lscX2}))));
-            int minY = std::max(0, static_cast<int>(std::floor(std::min({lscY0, lscY1, lscY2}))));
-            int maxY = std::min(shadowMap.getHeight() - 1, static_cast<int>(std::ceil(std::max({lscY0, lscY1, lscY2}))));
+                    // Project vertices to Light NDC
+                    Vec3f lv0 = lightSpaceMatrix.transformPoint(rv0);
+                    Vec3f lv1 = lightSpaceMatrix.transformPoint(rv1);
+                    Vec3f lv2 = lightSpaceMatrix.transformPoint(rv2);
 
-            float area = (lscX1 - lscX0) * (lscY2 - lscY0) - (lscY1 - lscY0) * (lscX2 - lscX0);
-            if (std::abs(area) < 1e-5f) continue;
+                    // Transform Light NDC coordinates to Shadow Map screen coordinates
+                    // NDC Y is +up but texture Y is +down, so flip Y.
+                    float lscX0 = (lv0.x + 1.0f) * 0.5f * (float)(shadowMap.getWidth() - 1);
+                    float lscY0 = (1.0f - (lv0.y + 1.0f) * 0.5f) * (float)(shadowMap.getHeight() - 1);
+                    float lscX1 = (lv1.x + 1.0f) * 0.5f * (float)(shadowMap.getWidth() - 1);
+                    float lscY1 = (1.0f - (lv1.y + 1.0f) * 0.5f) * (float)(shadowMap.getHeight() - 1);
+                    float lscX2 = (lv2.x + 1.0f) * 0.5f * (float)(shadowMap.getWidth() - 1);
+                    float lscY2 = (1.0f - (lv2.y + 1.0f) * 0.5f) * (float)(shadowMap.getHeight() - 1);
 
-            for (int y = minY; y <= maxY; ++y) {
-                for (int x = minX; x <= maxX; ++x) {
-                    float w0 = ((x + 0.5f - lscX1) * (lscY2 - lscY1) - (y + 0.5f - lscY1) * (lscX2 - lscX1)) / area;
-                    float w1 = ((x + 0.5f - lscX2) * (lscY0 - lscY2) - (y + 0.5f - lscY2) * (lscX0 - lscX2)) / area;
-                    float w2 = 1.0f - w0 - w1;
+                    int minX = std::max(0, static_cast<int>(std::floor(std::min({lscX0, lscX1, lscX2}))));
+                    int maxX = std::min(shadowMap.getWidth() - 1, static_cast<int>(std::ceil(std::max({lscX0, lscX1, lscX2}))));
+                    int minY = std::max(0, static_cast<int>(std::floor(std::min({lscY0, lscY1, lscY2}))));
+                    int maxY = std::min(shadowMap.getHeight() - 1, static_cast<int>(std::ceil(std::max({lscY0, lscY1, lscY2}))));
 
-                    if (w0 >= 0.0f && w1 >= 0.0f && w2 >= 0.0f) {
-                        float depth = w0 * lv0.z + w1 * lv1.z + w2 * lv2.z;
-                        // setDepth records the minimum (closest-to-light) depth automatically
-                        shadowMap.setDepth(x, y, depth);
+                    float area = (lscX1 - lscX0) * (lscY2 - lscY0) - (lscY1 - lscY0) * (lscX2 - lscX0);
+                    if (std::abs(area) < 1e-5f) continue;
+
+                    for (int y = minY; y <= maxY; ++y) {
+                        for (int x = minX; x <= maxX; ++x) {
+                            float w0 = ((x + 0.5f - lscX1) * (lscY2 - lscY1) - (y + 0.5f - lscY1) * (lscX2 - lscX1)) / area;
+                            float w1 = ((x + 0.5f - lscX2) * (lscY0 - lscY2) - (y + 0.5f - lscY2) * (lscX0 - lscX2)) / area;
+                            float w2 = 1.0f - w0 - w1;
+
+                            if (w0 >= 0.0f && w1 >= 0.0f && w2 >= 0.0f) {
+                                float depth = w0 * lv0.z + w1 * lv1.z + w2 * lv2.z;
+                                // setDepth records the minimum (closest-to-light) depth automatically
+                                shadowMap.setDepth(x, y, depth);
+                            }
+                        }
                     }
                 }
-            }
+            });
+        }
+        for (auto& th : threads) {
+            if (th.joinable()) th.join();
         }
 
         // ── PASS 2: CAMERA SHADING PASS ─────────────────────────────────────

@@ -258,12 +258,14 @@ void drawTriangleTexturedShadedTile(const Vec3f& v0, const Vec3f& v1, const Vec3
                     if (jittedShader) {
                         float shadowFactor = 1.0f;
                         Vec3f worldPos = w0 * u + w1 * v + w2 * w;
+                        Vec3f interpNormal = n0 * u + n1 * v + n2 * w;
+                        interpNormal.normalize();
                         if (shadowMap) {
-                            shadowFactor = shadowMap->sampleShadow(worldPos, n0 * u + n1 * v + n2 * w, lDir);
+                            shadowFactor = shadowMap->sampleShadow(worldPos, interpNormal, lDir);
                         }
                         PixelContext ctx = {
                             Vec2f(texU, texV),
-                            n0 * u + n1 * v + n2 * w,
+                            interpNormal,
                             worldPos,
                             &texture,
                             normalMap,
@@ -446,12 +448,14 @@ void drawTriangleTexturedShadedSIMD(const Vec3f& v0, const Vec3f& v1, const Vec3
                         if (jittedShader) {
                             float shadowFactor = 1.0f;
                             Vec3f worldPos = w0 * u + w1 * v + w2 * w;
+                            Vec3f interpNormal = n0 * u + n1 * v + n2 * w;
+                            interpNormal.normalize();
                             if (shadowMap) {
-                                shadowFactor = shadowMap->sampleShadow(worldPos, n0 * u + n1 * v + n2 * w, lDir);
+                                shadowFactor = shadowMap->sampleShadow(worldPos, interpNormal, lDir);
                             }
                             PixelContext ctx = {
                                 Vec2f(texU, texV),
-                                n0 * u + n1 * v + n2 * w,
+                                interpNormal,
                                 worldPos,
                                 &texture,
                                 normalMap,
@@ -541,12 +545,14 @@ void drawTriangleTexturedShadedSIMD(const Vec3f& v0, const Vec3f& v1, const Vec3
                     if (jittedShader) {
                         float shadowFactor = 1.0f;
                         Vec3f worldPos = w0 * u + w1 * v + w2 * w;
+                        Vec3f interpNormal = n0 * u + n1 * v + n2 * w;
+                        interpNormal.normalize();
                         if (shadowMap) {
-                            shadowFactor = shadowMap->sampleShadow(worldPos, n0 * u + n1 * v + n2 * w, lDir);
+                            shadowFactor = shadowMap->sampleShadow(worldPos, interpNormal, lDir);
                         }
                         PixelContext ctx = {
                             Vec2f(texU, texV),
-                            n0 * u + n1 * v + n2 * w,
+                            interpNormal,
                             worldPos,
                             &texture,
                             normalMap,
